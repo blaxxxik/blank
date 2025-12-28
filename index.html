@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Text Search - Поддержка больших файлов</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            color: #f0f0f0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Основной контейнер */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 20px 100px;
+        }
+
+        /* Глобальное меню */
+        .global-nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(15, 15, 25, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(138, 138, 255, 0.2);
+            z-index: 1000;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #8a8aff 0%, #6464ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Карточки */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Заголовки */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #8a8aff 0%, #6464ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        /* Загрузка файла */
+        .file-drop-area {
+            border: 2px dashed rgba(138, 138, 255, 0.5);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .file-drop-area:hover {
+            border-color: #8a8aff;
+            background: rgba(138, 138, 255, 0.05);
+        }
+
+        /* Прогресс-бар */
+        .upload-progress {
+            margin-top: 20px;
+        }
+
+        .progress-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(138, 138, 255, 0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8a8aff 0%, #6464ff 100%);
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Предупреждения */
+        .large-file-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        /* Режимы загрузки */
+        .upload-modes {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(138, 138, 255, 0.3);
+            border-radius: 10px;
+            color: #a3a3ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .mode-btn.active {
+            background: rgba(138, 138, 255, 0.2);
+            border-color: #8a8aff;
+            color: #ffffff;
+        }
+
+        /* Поиск */
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 18px 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(138, 138, 255, 0.3);
+            border-radius: 15px;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #8a8aff;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 30px rgba(138, 138, 255, 0.3);
+        }
+
+        /* Кнопки */
+        .btn {
+            padding: 18px 30px;
+            border-radius: 15px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #8a8aff 0%, #6464ff 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(138, 138, 255, 0.4);
+        }
+
+        /* Результаты */
+        .results-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .result-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: linear-gradient(to bottom, #8a8aff, #6464ff);
+            border-radius: 4px 0 0 4px;
+        }
+
+        /* Сообщения */
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            background: rgba(30, 30, 46, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(138, 138, 255, 0.3);
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+        }
+
+        .message.show {
+            transform: translateX(0);
+        }
+
+        .message.success {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .message.error {
+            border-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+
+        /* Индикатор загрузки */
+        .loader {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(138, 138, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #8a8aff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .container {
+                padding: 100px 15px 130px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Глобальное меню -->
+    <nav class="global-nav">
+        <div class="nav-brand">
+            <span>🔍</span>
+            <span>Advanced Text Search</span>
+        </div>
+        <div class="nav-stats">
+            <span id="memoryInfo" style="color: #a3a3ff; font-size: 0.9rem;">
+                Память: <span id="memoryUsage">0 МБ</span>
+            </span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Заголовок -->
+        <div class="header">
+            <h1>🔍 Продвинутый поиск по тексту</h1>
+            <p style="color: #a3a3ff; max-width: 600px; margin: 0 auto;">
+                Поддержка файлов до 1 ГБ • Потоковая обработка • Экономия памяти
+            </p>
+        </div>
+
+        <!-- Загрузка файла -->
+        <div class="glass-card">
+            <h2 style="color: #ffffff; margin-bottom: 25px; font-size: 1.8rem;">
+                📁 Загрузите текстовый файл (до 1 ГБ)
+            </h2>
+            
+            <div class="file-drop-area" id="fileDropArea">
+                <div style="font-size: 4rem; margin-bottom: 20px; color: #8a8aff;">📄</div>
+                <p style="font-size: 1.2rem; margin-bottom: 10px; color: #ffffff;">
+                    Перетащите .txt файл сюда или кликните для выбора
+                </p>
+                <p style="color: #a3a3ff; font-size: 0.9rem;">
+                    Поддерживаются файлы до 1 ГБ
+                </p>
+                <div style="margin-top: 20px; padding: 10px; background: rgba(138, 138, 255, 0.1); border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="color: #a3a3ff;">Рекомендуемый режим:</span>
+                        <span id="recommendedMode" style="color: #8a8aff; font-weight: 600;">Авто</span>
+                    </div>
+                    <div style="color: #a3a3ff; font-size: 0.85rem;">
+                        <span>Браузерный лимит: ~1.5 ГБ RAM</span>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" accept=".txt" style="display: none;">
+            </div>
+            
+            <!-- Режимы загрузки -->
+            <div class="upload-modes">
+                <button id="modeFast" class="mode-btn active" data-mode="fast">
+                    ⚡ Быстрая загрузка
+                    <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 5px;">до 100 МБ</div>
+                </button>
+                <button id="modeStream" class="mode-btn" data-mode="stream">
+                    🔄 Потоковая обработка
+                    <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 5px;">100-500 МБ</div>
+                </button>
+                <button id="modeChunk" class="mode-btn" data-mode="chunk">
+                    🧩 По частям
+                    <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 5px;">500 МБ - 1 ГБ</div>
+                </button>
+            </div>
+            
+            <!-- Предупреждение -->
+            <div id="largeFileWarning" class="large-file-warning">
+                <div style="display: flex; align-items: center; gap: 10px; color: #ffc107; font-weight: 600; margin-bottom: 10px;">
+                    <span>⚠️</span>
+                    <span>Большой файл обнаружен</span>
+                </div>
+                <div style="color: #ffd54f; font-size: 0.9rem; line-height: 1.4;">
+                    Для оптимальной работы выбран режим потоковой обработки
+                </div>
+            </div>
+            
+            <!-- Прогресс загрузки -->
+            <div id="uploadProgress" class="upload-progress" style="display: none;">
+                <div class="progress-container">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="color: #ffffff; font-weight: 600;">Загрузка файла</span>
+                        <span style="color: #a3a3ff;" id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; color: #a3a3ff; font-size: 0.9rem;">
+                        <span id="loadedSize">0 Б</span>
+                        <span id="totalSize">0 Б</span>
+                    </div>
+                    <div style="margin-top: 10px; color: #8a8aff; font-size: 0.85rem;">
+                        Обработано строк: <span id="processedLines">0</span>
+                    </div>
+                </div>
+                
+                <!-- Кнопка отмены -->
+                <button id="cancelBtn" class="btn" style="width: 100%; margin-top: 15px; background: rgba(255, 90, 90, 0.2); color: #ff9e9e;">
+                    ❌ Отменить загрузку
+                </button>
+            </div>
+            
+            <!-- Информация о файле -->
+            <div id="fileInfo" class="file-info" style="margin-top: 20px; display: none;">
+                <!-- Информация появится здесь -->
+            </div>
+        </div>
+
+        <!-- Поиск -->
+        <div class="glass-card">
+            <h2 style="color: #ffffff; margin-bottom: 25px; font-size: 1.8rem;">
+                🔍 Поиск по тексту
+            </h2>
+            
+            <div class="search-box">
+                <input type="text" 
+                       id="searchInput" 
+                       class="search-input" 
+                       placeholder="Введите слово или фразу для поиска..."
+                       disabled>
+                <button id="searchBtn" class="btn btn-primary" disabled>
+                    <span>Поиск</span>
+                    <span>🔍</span>
+                </button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+                <button id="copyAllBtn" class="btn" style="background: rgba(255, 255, 255, 0.1); color: white;" disabled>
+                    📋 Копировать все
+                </button>
+                <button id="exportBtn" class="btn" style="background: rgba(255, 255, 255, 0.1); color: white;" disabled>
+                    📤 Экспорт
+                </button>
+                <button id="clearBtn" class="btn" style="background: rgba(255, 255, 255, 0.1); color: white;">
+                    🗑️ Очистить
+                </button>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="color: #ffffff; font-size: 1.5rem;">📊 Результаты</h3>
+                <div style="color: #a3a3ff; font-weight: 600;">
+                    Найдено: <span id="resultsCount">0</span> совпадений
+                </div>
+            </div>
+            
+            <div id="resultsContainer" class="results-container">
+                <div style="text-align: center; padding: 60px 20px; color: #a3a3ff;">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
+                    <p style="font-size: 1.2rem; margin-bottom: 10px;">
+                        Загрузите файл и начните поиск
+                    </p>
+                    <p style="opacity: 0.7;">
+                        Результаты появятся здесь
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения -->
+    <div id="message" class="message"></div>
+
+    <!-- Подключаем скрипты -->
+    <script src="background.js"></script>
+    <script src="menu.js"></script>
+    <script src="script.js"></script>
+
+    <script>
+        // Основной скрипт (оставил только самое необходимое)
+        let currentFile = null;
+        let searchResults = [];
+        let fileIndex = [];
+        let currentMode = 'fast';
+        let isProcessing = false;
+        let cancelRequested = false;
+        
+        const MODES = {
+            fast: { maxSize: 100 * 1024 * 1024, chunkSize: 1024 * 1024 },
+            stream: { maxSize: 500 * 1024 * 1024, chunkSize: 512 * 1024 },
+            chunk: { maxSize: 1024 * 1024 * 1024, chunkSize: 256 * 1024 }
+        };
+
+        // Элементы DOM
+        const elements = {
+            fileInput: document.getElementById('fileInput'),
+            fileDropArea: document.getElementById('fileDropArea'),
+            searchInput: document.getElementById('searchInput'),
+            searchBtn: document.getElementById('searchBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            copyAllBtn: document.getElementById('copyAllBtn'),
+            exportBtn: document.getElementById('exportBtn'),
+            resultsContainer: document.getElementById('resultsContainer'),
+            resultsCount: document.getElementById('resultsCount'),
+            uploadProgress: document.getElementById('uploadProgress'),
+            progressFill: document.getElementById('progressFill'),
+            progressPercent: document.getElementById('progressPercent'),
+            loadedSize: document.getElementById('loadedSize'),
+            totalSize: document.getElementById('totalSize'),
+            processedLines: document.getElementById('processedLines'),
+            modeFast: document.getElementById('modeFast'),
+            modeStream: document.getElementById('modeStream'),
+            modeChunk: document.getElementById('modeChunk'),
+            recommendedMode: document.getElementById('recommendedMode'),
+            largeFileWarning: document.getElementById('largeFileWarning'),
+            fileInfo: document.getElementById('fileInfo'),
+            memoryUsage: document.getElementById('memoryUsage'),
+            memoryInfo: document.getElementById('memoryInfo'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            message: document.getElementById('message')
+        };
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Б';
+            const k = 1024;
+            const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getMemoryUsage() {
+            if (window.performance && window.performance.memory) {
+                const used = window.performance.memory.usedJSHeapSize;
+                const total = window.performance.memory.totalJSHeapSize;
+                const limit = window.performance.memory.jsHeapSizeLimit;
+                return {
+                    used: Math.round(used / 1024 / 1024),
+                    total: Math.round(total / 1024 / 1024),
+                    limit: Math.round(limit / 1024 / 1024),
+                    percent: Math.round((used / limit) * 100)
+                };
+            }
+            return { used: 0, total: 0, limit: 1500, percent: 0 };
+        }
+
+        function updateMemoryInfo() {
+            const mem = getMemoryUsage();
+            elements.memoryUsage.textContent = `${mem.used} МБ (${mem.percent}%)`;
+            
+            if (mem.percent > 80) {
+                elements.memoryInfo.style.color = '#ff6b6b';
+            } else if (mem.percent > 60) {
+                elements.memoryInfo.style.color = '#ffc107';
+            } else {
+                elements.memoryInfo.style.color = '#a3a3ff';
+            }
+        }
+
+        function showMessage(text, type = 'info') {
+            const message = elements.message;
+            message.textContent = text;
+            message.className = `message ${type} show`;
+            
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 3000);
+        }
+
+        function getRecommendedMode(fileSize) {
+            if (fileSize <= MODES.fast.maxSize) return 'fast';
+            if (fileSize <= MODES.stream.maxSize) return 'stream';
+            return 'chunk';
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            [elements.modeFast, elements.modeStream, elements.modeChunk].forEach(btn => {
+                btn.classList.remove('active');
+            });
+            elements[`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`].classList.add('active');
+            
+            if (currentFile) {
+                const recommended = getRecommendedMode(currentFile.size);
+                elements.recommendedMode.textContent = recommended === mode ? 'Выбран' : recommended;
+            }
+        }
+
+        function readChunkAsText(chunk) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(chunk, 'UTF-8');
+            });
+        }
+
+        async function createFileIndex(file, mode) {
+            fileIndex = [];
+            let lineNumber = 1;
+            let processedBytes = 0;
+            const chunkSize = MODES[mode].chunkSize;
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            
+            for (let i = 0; i < totalChunks; i++) {
+                if (cancelRequested) {
+                    showMessage('Обработка отменена', 'error');
+                    return false;
+                }
+                
+                const start = i * chunkSize;
+                const end = Math.min(start + chunkSize, file.size);
+                const chunk = file.slice(start, end);
+                
+                const chunkText = await readChunkAsText(chunk);
+                const lines = chunkText.split('\n');
+                
+                for (let j = 0; j < lines.length; j++) {
+                    fileIndex.push({
+                        number: lineNumber++,
+                        startByte: start,
+                        chunkIndex: i,
+                        lineIndex: j
+                    });
+                }
+                
+                processedBytes += chunkSize;
+                const percent = Math.round((processedBytes / file.size) * 100);
+                elements.progressFill.style.width = `${percent}%`;
+                elements.progressPercent.textContent = `${percent}%`;
+                elements.processedLines.textContent = (lineNumber - 1).toLocaleString();
+                
+                await new Promise(resolve => setTimeout(resolve, 0));
+                
+                if (i % 10 === 0) {
+                    updateMemoryInfo();
+                    if (getMemoryUsage().percent > 85) {
+                        showMessage('Мало памяти! Останавливаю обработку...', 'error');
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        async function searchInFile(searchTerm) {
+            if (!currentFile || fileIndex.length === 0) {
+                showMessage('Файл не загружен', 'error');
+                return [];
+            }
+            
+            const results = [];
+            const termLower = searchTerm.toLowerCase();
+            const chunkSize = MODES[currentMode].chunkSize;
+            let chunksProcessed = new Set();
+            
+            for (const item of fileIndex) {
+                if (cancelRequested) break;
+                
+                if (!chunksProcessed.has(item.chunkIndex)) {
+                    const start = item.chunkIndex * chunkSize;
+                    const end = Math.min(start + chunkSize, currentFile.size);
+                    const chunk = currentFile.slice(start, end);
+                    const chunkText = await readChunkAsText(chunk);
+                    
+                    chunksProcessed.add(item.chunkIndex);
+                    window[`chunk_${item.chunkIndex}`] = chunkText;
+                }
+                
+                const chunkText = window[`chunk_${item.chunkIndex}`];
+                const lines = chunkText.split('\n');
+                const line = lines[item.lineIndex];
+                
+                if (line && line.toLowerCase().includes(termLower)) {
+                    const positions = [];
+                    let pos = line.toLowerCase().indexOf(termLower);
+                    while (pos !== -1) {
+                        positions.push(pos);
+                        pos = line.toLowerCase().indexOf(termLower, pos + 1);
+                    }
+                    
+                    results.push({
+                        lineNumber: item.number,
+                        content: line,
+                        searchTerm: searchTerm,
+                        positions: positions,
+                        chunkIndex: item.chunkIndex,
+                        lineIndex: item.lineIndex
+                    });
+                }
+                
+                if (results.length >= 1000) {
+                    showMessage('Показаны первые 1000 результатов', 'warning');
+                    break;
+                }
+                
+                if (results.length % 100 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            
+            chunksProcessed.forEach(index => {
+                delete window[`chunk_${index}`];
+            });
+            
+            return results;
+        }
+
+        async function handleFileUpload(file) {
+            cancelRequested = false;
+            isProcessing = true;
+            currentFile = file;
+            
+            if (file.size > MODES.chunk.maxSize) {
+                showMessage(`Файл слишком большой. Максимальный размер: 1 ГБ`, 'error');
+                return;
+            }
+            
+            const recommendedMode = getRecommendedMode(file.size);
+            setMode(recommendedMode);
+            
+            if (file.size > MODES.fast.maxSize) {
+                elements.largeFileWarning.style.display = 'block';
+            }
+            
+            elements.uploadProgress.style.display = 'block';
+            elements.fileInfo.style.display = 'none';
+            elements.progressFill.style.width = '0%';
+            elements.progressPercent.textContent = '0%';
+            elements.loadedSize.textContent = '0 Б';
+            elements.totalSize.textContent = formatBytes(file.size);
+            
+            showMessage('Создание индекса файла...', 'info');
+            const indexCreated = await createFileIndex(file, currentMode);
+            
+            if (!indexCreated || cancelRequested) {
+                elements.uploadProgress.style.display = 'none';
+                isProcessing = false;
+                return;
+            }
+            
+            elements.uploadProgress.style.display = 'none';
+            elements.fileInfo.style.display = 'block';
+            elements.fileInfo.innerHTML = `
+                <div style="color: #ffffff; font-weight: 600; font-size: 1.2rem; margin-bottom: 10px;">
+                    ${file.name}
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <div style="background: rgba(138, 138, 255, 0.1); padding: 10px; border-radius: 8px;">
+                        <div style="color: #a3a3ff; font-size: 0.9rem;">Размер</div>
+                        <div style="color: #ffffff; font-weight: 600;">${formatBytes(file.size)}</div>
+                    </div>
+                    <div style="background: rgba(138, 138, 255, 0.1); padding: 10px; border-radius: 8px;">
+                        <div style="color: #a3a3ff; font-size: 0.9rem;">Строк</div>
+                        <div style="color: #ffffff; font-weight: 600;">${fileIndex.length.toLocaleString()}</div>
+                    </div>
+                </div>
+                <div style="color: #8a8aff; font-size: 0.9rem; padding: 10px; background: rgba(138, 138, 255, 0.1); border-radius: 8px;">
+                    <span>Режим:</span> ${currentMode === 'fast' ? '⚡ Быстрый' : currentMode === 'stream' ? '🔄 Потоковый' : '🧩 По частям'}
+                </div>
+            `;
+            
+            elements.searchInput.disabled = false;
+            elements.searchBtn.disabled = false;
+            elements.copyAllBtn.disabled = false;
+            elements.exportBtn.disabled = false;
+            
+            showMessage(`Файл "${file.name}" успешно загружен!`, 'success');
+            isProcessing = false;
+            updateMemoryInfo();
+        }
+
+        async function performSearch() {
+            const searchTerm = elements.searchInput.value.trim();
+            
+            if (!searchTerm) {
+                showMessage('Введите слово для поиска', 'warning');
+                return;
+            }
+            
+            if (!currentFile) {
+                showMessage('Сначала загрузите файл', 'warning');
+                return;
+            }
+            
+            elements.searchBtn.disabled = true;
+            elements.searchBtn.innerHTML = '<div class="loader" style="width: 20px; height: 20px;"></div>';
+            
+            const startTime = Date.now();
+            searchResults = await searchInFile(searchTerm);
+            const searchTime = Date.now() - startTime;
+            
+            elements.resultsCount.textContent = searchResults.length;
+            displayResults();
+            
+            elements.searchBtn.disabled = false;
+            elements.searchBtn.innerHTML = '<span>Поиск</span><span>🔍</span>';
+            showMessage(`Найдено ${searchResults.length} совпадений за ${searchTime}мс`, 'success');
+        }
+
+        function displayResults() {
+            const container = elements.resultsContainer;
+            
+            if (searchResults.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: #a3a3ff;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
+                        <p style="font-size: 1.2rem; margin-bottom: 10px;">
+                            По запросу "<span style="color: #8a8aff;">${elements.searchInput.value}</span>" ничего не найдено
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            for (let i = 0; i < Math.min(searchResults.length, 100); i++) {
+                const result = searchResults[i];
+                let highlightedContent = result.content;
+                
+                result.positions.sort((a, b) => b - a).forEach(pos => {
+                    const end = pos + result.searchTerm.length;
+                    highlightedContent = 
+                        highlightedContent.substring(0, pos) +
+                        `<mark style="background: #ffeb3b; color: #000; padding: 2px 4px; border-radius: 3px;">${highlightedContent.substring(pos, end)}</mark>` +
+                        highlightedContent.substring(end);
+                });
+                
+                html += `
+                    <div class="result-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="background: linear-gradient(135deg, #8a8aff 0%, #6464ff 100%); color: white; padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                                    Строка #${result.lineNumber}
+                                </span>
+                                <span style="color: #a3a3ff; font-size: 0.9rem;">
+                                    ${result.positions.length} вхождений
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="copy-line" data-line="${result.lineNumber}" data-content="${result.content.replace(/"/g, '&quot;')}" style="background: rgba(138, 138, 255, 0.1); border: 1px solid rgba(138, 138, 255, 0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                    📋 Копировать
+                                </button>
+                            </div>
+                        </div>
+                        <div style="color: #ffffff; font-family: monospace; background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 10px; white-space: pre-wrap; word-break: break-all;">
+                            ${highlightedContent}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (searchResults.length > 100) {
+                html += `
+                    <div style="text-align: center; padding: 20px; color: #ffc107;">
+                        <span>⚠️ Показаны первые 100 из ${searchResults.length} результатов</span>
+                        <div style="margin-top: 10px;">
+                            <button id="loadMoreBtn" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                                Загрузить еще 100
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            
+            container.querySelectorAll('.copy-line').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const line = e.target.dataset.line;
+                    const content = e.target.dataset.content;
+                    navigator.clipboard.writeText(content);
+                    showMessage(`Строка ${line} скопирована!`, 'success');
+                });
+            });
+            
+            if (searchResults.length > 100) {
+                document.getElementById('loadMoreBtn')?.addEventListener('click', () => {
+                    showMessage('Функция в разработке', 'info');
+                });
+            }
+        }
+
+        async function copyAllResults() {
+            if (searchResults.length === 0) {
+                showMessage('Нет результатов для копирования', 'warning');
+                return;
+            }
+            
+            let text = `Результаты поиска: "${elements.searchInput.value}"\n`;
+            text += `Файл: ${currentFile.name}\n`;
+            text += `Найдено: ${searchResults.length} совпадений\n\n`;
+            
+            const limit = Math.min(searchResults.length, 100);
+            for (let i = 0; i < limit; i++) {
+                const result = searchResults[i];
+                text += `[Строка ${result.lineNumber}]: ${result.content}\n`;
+            }
+            
+            if (searchResults.length > 100) {
+                text += `\n... и еще ${searchResults.length - 100} результатов\n`;
+            }
+            
+            await navigator.clipboard.writeText(text);
+            showMessage(`${limit} строк скопированы!`, 'success');
+        }
+
+        function exportResults() {
+            if (searchResults.length === 0) {
+                showMessage('Нет результатов для экспорта', 'warning');
+                return;
+            }
+            
+            let content = `Результаты поиска: "${elements.searchInput.value}"\n`;
+            content += `Файл: ${currentFile.name}\n`;
+            content += `Время экспорта: ${new Date().toLocaleString()}\n`;
+            content += `Найдено: ${searchResults.length} совпадений\n\n`;
+            
+            searchResults.forEach(result => {
+                content += `[Строка ${result.lineNumber}]: ${result.content}\n`;
+            });
+            
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `search_results_${currentFile.name}_${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage(`Результаты экспортированы!`, 'success');
+        }
+
+        function clearResults() {
+            searchResults = [];
+            elements.searchInput.value = '';
+            elements.resultsCount.textContent = '0';
+            elements.resultsContainer.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #a3a3ff;">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
+                    <p style="font-size: 1.2rem; margin-bottom: 10px;">
+                        Загрузите файл и начните поиск
+                    </p>
+                    <p style="opacity: 0.7;">
+                        Результаты появятся здесь
+                    </p>
+                </div>
+            `;
+            
+            showMessage('Результаты очищены', 'info');
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            setInterval(updateMemoryInfo, 2000);
+            
+            elements.modeFast.addEventListener('click', () => setMode('fast'));
+            elements.modeStream.addEventListener('click', () => setMode('stream'));
+            elements.modeChunk.addEventListener('click', () => setMode('chunk'));
+            
+            elements.fileDropArea.addEventListener('click', () => {
+                elements.fileInput.click();
+            });
+            
+            elements.fileDropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                elements.fileDropArea.style.borderColor = '#8a8aff';
+                elements.fileDropArea.style.background = 'rgba(138, 138, 255, 0.1)';
+            });
+            
+            elements.fileDropArea.addEventListener('dragleave', () => {
+                elements.fileDropArea.style.borderColor = '';
+                elements.fileDropArea.style.background = '';
+            });
+            
+            elements.fileDropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                elements.fileDropArea.style.borderColor = '';
+                elements.fileDropArea.style.background = '';
+                
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    handleFileUpload(file);
+                }
+            });
+            
+            elements.fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleFileUpload(file);
+                }
+            });
+            
+            elements.cancelBtn.addEventListener('click', () => {
+                cancelRequested = true;
+            });
+            
+            elements.searchBtn.addEventListener('click', performSearch);
+            elements.searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') performSearch();
+            });
+            
+            elements.clearBtn.addEventListener('click', clearResults);
+            elements.copyAllBtn.addEventListener('click', copyAllResults);
+            elements.exportBtn.addEventListener('click', exportResults);
+        });
+    </script>
+</body>
+</html>
